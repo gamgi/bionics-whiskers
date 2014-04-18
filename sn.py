@@ -59,6 +59,7 @@ class program:
 	def update(self):
 		#self.app.canvas.delete(tk.ALL)
 		self.tkroot.after(2000, self.update)
+		#INSERT REALTIME STUFF HERE...
 
 class Visible(tk.Frame):		#Extension on Tk.Frame
 	def __init__(self, parent):
