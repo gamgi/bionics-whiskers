@@ -6,6 +6,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from subprocess import call
 from scipy import fftpack
+from scipy import interpolate
+from scipy import signal
 import numpy as np
 import Tkinter as tk
 import ttk
@@ -18,11 +20,11 @@ import ttk
 	Please observe the import mess.
 
 	The application hierarchy is as follows:
-	 			  run
-		 ___________|____________
-		/  		  |			\
-	.tkroot		.ui			.fcanvas
-				/	
+	 			run
+		__________|_________
+		/  	 	|		\
+	.tkroot		.ui		.fcanvas
+					
 
 	** Description **
 	Name-----------Class/type---------------Explanation
@@ -120,7 +122,7 @@ def prt(message):	#prints message to the textbox
 	run.ui.text.insert(tk.END, message+"\n")
 	run.ui.text.see(tk.END)
 
-def plot_sound(self):	#Plots sound on graph and packs it below UI (todo: pack every time?? or just once)
+def plot_sound(self):	#Plots sound on graph 
 	'''
 	Here are some specifications and explanaitons:
 
@@ -176,30 +178,64 @@ def plot_sound(self):	#Plots sound on graph and packs it below UI (todo: pack ev
 		amp = amplitude or tiheysfunktio. How many occurences of this frequency are there
 		frq = the corresponding frequency
 	'''
-	amp = fftpack.fft(Y)#/samples		#fourier transform the original signal. Scale so that it does not depend on the signal or sampling freq
+	amp = fftpack.fft(Y)/samples		#fourier transform the original signal. Scale so that it does not depend on the signal or sampling freq
 								#I do not understand this. On the web this relates to MATLAB not scaling fft output by length of input
 								#wtf i do not want to /samples
 	amp = amp[0:samples/2]	#chop of half of spectrum (it's symmetric. feature of fft or something)
-	amp = amp / 2e8		#apply scaling factor (see above for explanation)
+	amp = amp / (2**(sampwidth*8/2))		#apply scaling factor (see above for explanation)
 	
 	frq = fftpack.fftfreq(amp.size, sampling_interval * 2)				#find corresponding frequencies
 	#frq = np.linspace(0.0, 1.0/(2.0 * sampling_interval), samples/2)  	#this would have worked aswell
 
 	#SCREEN the wanted portion of spectrum
 	hzs = (samples/2) / (1.0 / (2.0 * sampling_interval))	#herz per sample. So if i want to chop of 5hz from beginning. i remove 5*hzs samples
-	amp = amp[0:hzs*11000]		#here we remove all freq above 11kHz
-	frq = frq[0:hzs*11000]		#the x and y lists need to have equal amount of data
+	amp = amp[0:hzs*1000]		#here we remove all freq above 11kHz
+	frq = frq[0:hzs*1000]		#the x and y lists need to have equal amount of data
 
 	#MASK or apply treshold (todo)
 	mask = abs(amp) > 10		
 	#amp = amp[mask]
+
+	#ABSOLUTE
+	amp = abs(amp)
+
+	#DOWNSAMPLE
+	#amp.reshape(-1, 200)
+	#frq.reshape(-1, 200)
+	amp=signal.decimate(amp,10)
+	frq=signal.decimate(frq,10)
+
+	#ANALYZE PEAKS
+	try:
+		#We use 2 methods for peak detection	
+		peaks_fp = signal.find_peaks_cwt(amp, np.arange(3,10))
+		peaks_ax=signal.argrelextrema(amp,np.greater)
+
+		prt(str(peaks_fp))
+		prt(str(peaks_ax))
+
+		peak_val_fp = amp[peaks_fp]
+		peak_val_ax = amp[peaks_ax]
+
+	except AttributeError:
+		prt('some error in signal analysis :(')
+	#some spline interpolation testing that doesn't work
+	#amp_s = interpolate.UnivariateSpline(frq,amp,s=3)
+	#amp=amp_s(frq)
+		
+
 	
 	#DRAW
 	kuvaaja = run.ui.figure.add_subplot(111)
 	kuvaaja.set_title('Spectrum')
-	kuvaaja.plot(frq, abs(amp))
+	#kuvaaja.plot(frq, abs(amp))
+	kuvaaja.plot(frq, amp)
+	kuvaaja.hold(True)
 	kuvaaja.grid()
 	kuvaaja.set_xlabel('frequenzy [Hz]')
+	#kuvaaja.plot(peaks[0],amp[peaks[0]],'ro')
+	kuvaaja.plot(frq[peaks_fp],amp[peaks_fp],'ro')
+	kuvaaja.plot(frq[peaks_ax],amp[peaks_ax],'gx')
 	run.fcanvas.show()
 
 	#run.fcanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
