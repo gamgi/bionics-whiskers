@@ -109,8 +109,10 @@ class Visible(tk.Frame):		#Extension on Tk.Frame
 		self.entry2 = tk.Entry(self)
 		self.entry2.grid(row=1,column=1)
 		self.entry0.insert(0,'demo.wav')
-		self.entry1.insert(0,4000)
-		self.entry2.insert(0,800)
+		#self.entry1.insert(0,4000)
+		#self.entry2.insert(0,800)
+		self.entry1.insert(0,500)
+		self.entry2.insert(0,50)
 		#CHECKBOX
 		self.holdi = tk.IntVar()
 		self.check = tk.Checkbutton(self, text='hold graph',variable=self.holdi)
@@ -178,7 +180,7 @@ def plot_sound(self):	#Plots sound on graph
 		return
 	# Duration
 	dur = samples / float(wave_file.getframerate())
-	prt("Wave duration "+str(dur)+"s")
+	prt("Wave duration "+str(dur)+"s ("+str(path)+")")
 
 	#Read data values
 	X = []
@@ -208,6 +210,7 @@ def plot_sound(self):	#Plots sound on graph
 
 	max_frq = int(run.ui.entry1.get())
 	min_frq = int(run.ui.entry2.get())
+
 	#SCREEN the wanted portion of spectrum
 	hzs = (samples/2) / (1.0 / (2.0 * sampling_interval))	#herz per sample. So if i want to chop of 5hz from beginning. i remove 5*hzs samples
 	amp = amp[0:hzs*max_frq]		#here we remove all freq above 11kHz
@@ -219,11 +222,16 @@ def plot_sound(self):	#Plots sound on graph
 
 
 
+	#LOWPASS
+	''' to Seeparate HFM and WM signals, we used bandpass Butterworth type II filter of fourth order: cutoff frequencies 1-50 Hz and cutoff frequencies 50-300 Hz, respectivelyA'''
+	#h = signal.firwin(numtaps=10, cutoff=0.3, nyq=sampling_frq)
+	b,a = signal.butter(4,10, 'lowpass', analog=True)
+	#filtered = signal.lfilter(h,d,amp)
+	#filtered = signal.filtfilt(b,a,amp)
+
+
 	#ABSOLUTE
 	amp = abs(amp)
-	#LOWPASS
-	#h = signal.firwin(numtaps=int(run.ui.entry0.get()), cutoff=float(run.ui.entry1.get()), window="hamming")
-	#filtered = signal.lfilter(h,1,amp)
 	
 	#aapoa ja latea
 	''' jakaa datan seitsemaan osaan ja etsii maksimit '''
@@ -249,7 +257,7 @@ def plot_sound(self):	#Plots sound on graph
 	#ANALYZE PEAKS fp,ax "method"
 	try:
 		#We use 2 methods for peak detection	
-		peaks_fp = signal.find_peaks_cwt(amp, np.arange(2,10))
+		peaks_fp = signal.find_peaks_cwt(amp, np.arange(1,10))
 		peaks_ax=signal.argrelextrema(amp,np.greater)
 
 		#prt(str(peaks_fp))
@@ -278,19 +286,26 @@ def plot_sound(self):	#Plots sound on graph
 	prt(str(hzs))
 	for i in range(0,int(hzs*min_frq)):
 		data_y[i] = 0
-	data_y2=signal.decimate(data_y,10)
-	data_x2=signal.decimate(data_x,10)
+	data_y2=signal.decimate(data_y,7)
+	data_x2=signal.decimate(data_x,7)
+	#KAIKKI alle 0.0001 voi poistaa. staattista kamaa
+	'''for i in range(0,len(data_y2)):
+		if (data_y2[i]<=0.0001):
+			data_y2[i] = 0'''
 	#data_x = frq[hzs*800:5000*hzs]
 	#data_y = amp[hzs*800:5000*hzs]
 
-	data_peaks = signal.find_peaks_cwt(data_y2, np.arange(1,10))
+	#data_peaks = signal.find_peaks_cwt(data_y2, np.arange(1,20))
+	data_peaks=signal.argrelextrema(data_y2,np.greater)
+	prt(str(data_peaks))
+	data_peaks=data_peaks[0]
+	data_peaks=data_peaks[0:2]
 	#data_peaks=signal.argrelextrema(data_y,np.greater)
 	#some spline interpolation testing that doesn't work
 	#amp_s = interpolate.UnivariateSpline(frq,amp,s=3)
 	#amp=amp_s(frq)
 		
 
-	
 	
 	#DRAW
 	if (run.ui.holdi.get() == 0):
@@ -300,7 +315,7 @@ def plot_sound(self):	#Plots sound on graph
 	kuvaaja.set_title('Spectrum')
 	#kuvaaja.plot(frq, abs(amp))
 	kuvaaja.plot(frq, amp)
-	kuvaaja.plot(frq, mediaani)
+	#kuvaaja.plot(frq, mediaani)
 	#kuvaaja.plot(frq, filtered)
 	kuvaaja.hold(True)
 	kuvaaja.grid()
@@ -308,10 +323,13 @@ def plot_sound(self):	#Plots sound on graph
 	#kuvaaja.plot(peaks[0],amp[peaks[0]],'ro')
 	#kuvaaja.plot(frq[peaks_fp],amp[peaks_fp],'ro')
 	#kuvaaja.plot(frq[peaks_ax],amp[peaks_ax],'gx')
+	#kuvaaja.plot(data_x2[data_peaks[0:2]],[0,0],'r|')
+	kuvaaja.axvline(x=data_x2[data_peaks[0]], color='g')
+	kuvaaja.axvline(x=data_x2[data_peaks[1]], color='g')
 
 	#KUVAAJA 2
 	kuvaaja2 = run.ui.figure.add_subplot(212)
-	kuvaaja2.set_title('Poweer')
+	kuvaaja2.set_title('Peaks')
 	#kuvaaja2.plot(frq, np.log(amp)**2)
 	#kuvaaja2.plot(data_x, data_y)
 	kuvaaja2.plot(data_x2, data_y2)
@@ -325,20 +343,32 @@ def plot_sound(self):	#Plots sound on graph
 
 	#JONKINLAINEN MATERIAALIANALYYSI
 	''' vetailee kolmen ensimmaisen piikin suhteellisia eroja. 750hz, 1550hz ja 2225 hz'''
-	arvo1 = data_y2[data_peaks[1]] / data_y2[data_peaks[0]]
-	arvo2 = data_y2[data_peaks[2]] / data_y2[data_peaks[0]]
-	prt(str(data_x2[data_peaks[0:5]]))
-	prt('parametrit '+str(arvo1)+" "+str(arvo2))
-	materiaalit = [[7.46,0.5, "puuta"],[5.85,1.15, "metallia"], [9.75, 0.799, "pahvia"]]
-	dist_max = 100
-	material = -1
-	for mat in materiaalit:
-		dist = abs(mat[0]-arvo1) + abs(mat[1]-arvo2)
-		if (dist < dist_max):
-			dist_max = dist
-			material = mat[2]
-		prt(str(dist))
-	prt('luulen etta tama on '+str(material))	
+	''' eivaan kahden ekan'''
+	try:
+		if (data_y2[data_peaks[0]] <= 0.020):
+			arvo1=0
+			arvo2=0
+		else:
+			arvo1 = data_x2[data_peaks[0]]# / data_y2[data_peaks[0]]
+			arvo2 = data_x2[data_peaks[1]]# / data_y2[data_peaks[0]]
+			#arvo1 = data_y2[data_peaks[1]] / data_y2[data_peaks[0]]
+			#arvo2 = data_y2[data_peaks[2]] / data_y2[data_peaks[0]]
+		#prt(str(data_x2[data_peaks[0:5]]))
+		prt('parametrit '+str(arvo1)+" "+str(arvo2))
+		#materiaalit muodossa [ekapiikki, tokapiikki, painoarvo, painoarvo, nimi]
+		#materiaalit = [[7.46,0.5, "puuta"],[5.85,1.15, "metallia"], [9.75, 0.799, "pahvia"]]
+		materiaalit = [[122.5,202,1,0.5, "puuta"],[114.7,152,1,0.3, "metallia"], [144, 272,1,0.2, "pahvia"]]
+		dist_max = 1000000
+		material = -1
+		for mat in materiaalit:
+			dist = abs(mat[0]-arvo1)*mat[2] + abs(mat[1]-arvo2)*mat[3]
+			if (dist < dist_max):
+				dist_max = dist
+				material = mat[4]
+			prt(str(dist))
+		prt('luulen etta tama on '+str(material))	
+	except IndexError:
+		prt('no peaks found')
 
 	#run.fcanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 	#fig.fcanvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)			#left here because i do not know what this does but i should
