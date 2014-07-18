@@ -22,7 +22,7 @@ import ttk
 	The application hierarchy is as follows:
 	 			run
 		__________|_________
-		/  	 	|		\
+		/  	 	|	\
 	.tkroot		.ui		.fcanvas
 					
 
@@ -55,6 +55,7 @@ class program:
 		self.tkroot.after(2000, self.update)
 		self.fcanvas = FigureCanvasTkAgg(self.ui.figure, master=self.tkroot)
 		self.fcanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+		self.material = []
 
 	def loop(self):	# starts tk main loop
 		self.tkroot.mainloop()
@@ -77,7 +78,8 @@ class Visible(tk.Frame):		#Extension on Tk.Frame
 		self.rowconfigure(2, weight=1)
 		# call to start the updating "thread" 
 		self.after(2000,parent.update)
-
+	#def save(self):
+			
 	def close( self):
 		self.destroy()
 		self.quit()
@@ -99,6 +101,9 @@ class Visible(tk.Frame):		#Extension on Tk.Frame
 		#Plot buttokn
 		plotBtn = tk.Button(self, text="Plot", command= lambda: plot_sound(self))
 		plotBtn.grid(row=0, column = 2)
+		#SAVE
+		saveBtn = tk.Button(self, text="Save", command= lambda: save(self))
+		saveBtn.grid(row=2, column = 2)
 		#plotBtn2 = tk.Button(self, text="Plot", command= display_sound())
 		#plotBtn2.grid(row=0, column = 3)
 		#filter entries
@@ -108,6 +113,8 @@ class Visible(tk.Frame):		#Extension on Tk.Frame
 		self.entry1.grid(row=1,column=2)
 		self.entry2 = tk.Entry(self)
 		self.entry2.grid(row=1,column=1)
+		self.entry3 = tk.Entry(self)
+		self.entry3.grid(row=2,column=0)
 		self.entry0.insert(0,'demo.wav')
 		#self.entry1.insert(0,4000)
 		#self.entry2.insert(0,800)
@@ -138,6 +145,15 @@ def prt(message):	#prints message to the textbox
 	run.ui.text.see(tk.END)
 
 def plot_sound(self):	#Plots sound on graph 
+	handle = open("material.txt", "r")
+	self.material = []
+	for i in range(0,3):
+		line = handle.readline()
+		self.material.append(line.strip().split(','))
+	#prt(str(self.material))
+	materiaali = self.material
+
+
 	'''
 	Here are some specifications and explanaitons:
 
@@ -220,7 +236,13 @@ def plot_sound(self):	#Plots sound on graph
 	mask = abs(amp) > 10		
 	#amp = amp[mask]
 
+	'''
 
+
+	TÄSTÄ ETEENPÄIN KAIKKI ON VAAN RUMAA KOODIA :(
+
+
+	'''
 
 	#LOWPASS
 	''' to Seeparate HFM and WM signals, we used bandpass Butterworth type II filter of fourth order: cutoff frequencies 1-50 Hz and cutoff frequencies 50-300 Hz, respectivelyA'''
@@ -283,82 +305,65 @@ def plot_sound(self):	#Plots sound on graph
 			data_x.append(frq[i])
 			data_y.append(amp[i]-mediaani[i])
 	hzs = len(data_y)/float(max_frq)
-	prt(str(hzs))
+	#prt(str(hzs))
 	for i in range(0,int(hzs*min_frq)):
 		data_y[i] = 0
 	data_y2=signal.decimate(data_y,7)
 	data_x2=signal.decimate(data_x,7)
-	#KAIKKI alle 0.0001 voi poistaa. staattista kamaa
-	'''for i in range(0,len(data_y2)):
-		if (data_y2[i]<=0.0001):
-			data_y2[i] = 0'''
-	#data_x = frq[hzs*800:5000*hzs]
-	#data_y = amp[hzs*800:5000*hzs]
-
-	#data_peaks = signal.find_peaks_cwt(data_y2, np.arange(1,20))
+	#huiput
 	data_peaks=signal.argrelextrema(data_y2,np.greater)
-	prt(str(data_peaks))
 	data_peaks=data_peaks[0]
-	data_peaks=data_peaks[0:2]
-	#data_peaks=signal.argrelextrema(data_y,np.greater)
-	#some spline interpolation testing that doesn't work
-	#amp_s = interpolate.UnivariateSpline(frq,amp,s=3)
-	#amp=amp_s(frq)
-		
+
+	ddd = data_y2[data_peaks].tolist().index(min(data_y2[data_peaks]))
+	#vain 3 kpl huippuja
+	if (len(data_peaks)>=3):
+		vara = data_peaks.tolist()
+		vara.pop(ddd)
+		data_peaks = vara
 
 	
 	#DRAW
 	if (run.ui.holdi.get() == 0):
 		run.ui.figure.clf()
-	prt(str(run.ui.holdi.get()))
+	
 	kuvaaja = run.ui.figure.add_subplot(211)
 	kuvaaja.set_title('Spectrum')
-	#kuvaaja.plot(frq, abs(amp))
+
 	kuvaaja.plot(frq, amp)
-	#kuvaaja.plot(frq, mediaani)
-	#kuvaaja.plot(frq, filtered)
+	
 	kuvaaja.hold(True)
 	kuvaaja.grid()
 	kuvaaja.set_xlabel('frequenzy [Hz]')
-	#kuvaaja.plot(peaks[0],amp[peaks[0]],'ro')
-	#kuvaaja.plot(frq[peaks_fp],amp[peaks_fp],'ro')
-	#kuvaaja.plot(frq[peaks_ax],amp[peaks_ax],'gx')
-	#kuvaaja.plot(data_x2[data_peaks[0:2]],[0,0],'r|')
-	kuvaaja.axvline(x=data_x2[data_peaks[0]], color='g')
-	kuvaaja.axvline(x=data_x2[data_peaks[1]], color='g')
+
 
 	#KUVAAJA 2
 	kuvaaja2 = run.ui.figure.add_subplot(212)
 	kuvaaja2.set_title('Peaks')
-	#kuvaaja2.plot(frq, np.log(amp)**2)
-	#kuvaaja2.plot(data_x, data_y)
+
 	kuvaaja2.plot(data_x2, data_y2)
 	kuvaaja2.plot(data_x2[data_peaks],data_y2[data_peaks],'ro')
-	#kuvaaja2.plot(data_x[data_peaks[0]],data_y[data_peaks[0]],'ro')
+
 	kuvaaja2.grid()
 	kuvaaja2.set_xlabel('frequenzy [Hz]')
-	#aapomax
-	#kuvaaja.plot(aapomax,aapomax_v,'bo')
+
 	run.fcanvas.show()
 
 	#JONKINLAINEN MATERIAALIANALYYSI
 	''' vetailee kolmen ensimmaisen piikin suhteellisia eroja. 750hz, 1550hz ja 2225 hz'''
 	''' eivaan kahden ekan'''
 	try:
-		if (data_y2[data_peaks[0]] <= 0.020):
-			arvo1=0
-			arvo2=0
-		else:
-			arvo1 = data_x2[data_peaks[0]]# / data_y2[data_peaks[0]]
-			arvo2 = data_x2[data_peaks[1]]# / data_y2[data_peaks[0]]
-			#arvo1 = data_y2[data_peaks[1]] / data_y2[data_peaks[0]]
-			#arvo2 = data_y2[data_peaks[2]] / data_y2[data_peaks[0]]
-		#prt(str(data_x2[data_peaks[0:5]]))
-		prt('parametrit '+str(arvo1)+" "+str(arvo2))
+
+		arvo1 = data_x2[data_peaks[0]]# / data_y2[data_peaks[0]]
+		arvo2 = data_x2[data_peaks[1]]# / data_y2[data_peaks[0]]
+		arvo3 = data_y2[data_peaks[1]] / data_y2[data_peaks[0]]
+
+		prt('parametrit '+str(arvo1)+" "+str(arvo2)+" "+str(arvo3))
 		#materiaalit muodossa [ekapiikki, tokapiikki, painoarvo, painoarvo, nimi]
-		#materiaalit = [[7.46,0.5, "puuta"],[5.85,1.15, "metallia"], [9.75, 0.799, "pahvia"]]
-		materiaalit = [[122.5,202,1,0.5, "puuta"],[114.7,152,1,0.3, "metallia"], [144, 272,1,0.2, "pahvia"]]
+
+		materiaalit = [[172.5,232,1,0.8, "puuta",0.2,0.6],[170.6,250,0.9,0.5, "metallia",0.28,0.5], [126,212,0.6,0.6,"lasia",0.65,1], [97,138,0.2,0.9,"kangas",0.9,0.9]]
+
 		dist_max = 1000000
+
 		material = -1
 		for mat in materiaalit:
 			dist = abs(mat[0]-arvo1)*mat[2] + abs(mat[1]-arvo2)*mat[3]
@@ -369,10 +374,6 @@ def plot_sound(self):	#Plots sound on graph
 		prt('luulen etta tama on '+str(material))	
 	except IndexError:
 		prt('no peaks found')
-
-	#run.fcanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-	#fig.fcanvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)			#left here because i do not know what this does but i should
-	
 	prt('waveform plotted')
 
 def display_sound():
