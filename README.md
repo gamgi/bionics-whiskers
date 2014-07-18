@@ -21,7 +21,9 @@ check in IDLE:
 
 
 This is by default(?) 0.9 in ubuntu 12.04 so remember to
+``` shell
 sudo apt-get install python(3)-setuptools
 sudo apy-get install libatlas-base-dev gfortran
 sudo apt-get install python-pip
 sudo pip install --upgrade scipy
+```
