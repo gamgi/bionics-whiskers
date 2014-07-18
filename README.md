@@ -13,6 +13,7 @@ Great sources for understanding spectral ananalysis in python:
 - http://stackoverflow.com/questions/8582559/determining-frequency-of-an-array-in-python
 
 Required stuff:
+Python 3.?
 
 scipy v 0.11.0 or greater. Needed for scipy signal stuff.
 check in IDLE:
